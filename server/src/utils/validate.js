@@ -24,23 +24,31 @@ function validateItem(item, groupName, index) {
     return `${groupName}[${index}] must be an object`;
   }
 
-  const fields = ["word", "inspiration", "direction"];
+  const fields = ["word", "inspiration", "direction", "application", "risk"];
   for (const field of fields) {
     if (!isNonEmptyString(item[field])) {
       return `${groupName}[${index}].${field} must be a non-empty string`;
     }
   }
 
-  if (String(item.word).trim().length > 30) {
+  if (String(item.word).trim().length > 24) {
     return `${groupName}[${index}].word is too long`;
   }
 
-  if (String(item.inspiration).trim().length > 120) {
+  if (String(item.inspiration).trim().length > 220) {
     return `${groupName}[${index}].inspiration is too long`;
   }
 
-  if (String(item.direction).trim().length > 120) {
+  if (String(item.direction).trim().length > 260) {
     return `${groupName}[${index}].direction is too long`;
+  }
+
+  if (String(item.application).trim().length > 260) {
+    return `${groupName}[${index}].application is too long`;
+  }
+
+  if (String(item.risk).trim().length > 260) {
+    return `${groupName}[${index}].risk is too long`;
   }
 
   return null;
@@ -57,8 +65,8 @@ export function validateStimulusResult(result) {
       return `${group} must be an array`;
     }
 
-    if (result[group].length !== 10) {
-      return `${group} must contain exactly 10 items`;
+    if (result[group].length !== 16) {
+      return `${group} must contain exactly 16 items`;
     }
 
     for (let i = 0; i < result[group].length; i += 1) {
@@ -87,16 +95,22 @@ export function normalizeStimulusResult(result) {
       word: String(item.word).trim(),
       inspiration: String(item.inspiration).trim(),
       direction: String(item.direction).trim(),
+      application: String(item.application).trim(),
+      risk: String(item.risk).trim(),
     })),
     medium: result.medium.map((item) => ({
       word: String(item.word).trim(),
       inspiration: String(item.inspiration).trim(),
       direction: String(item.direction).trim(),
+      application: String(item.application).trim(),
+      risk: String(item.risk).trim(),
     })),
     far: result.far.map((item) => ({
       word: String(item.word).trim(),
       inspiration: String(item.inspiration).trim(),
       direction: String(item.direction).trim(),
+      application: String(item.application).trim(),
+      risk: String(item.risk).trim(),
     })),
   };
 }

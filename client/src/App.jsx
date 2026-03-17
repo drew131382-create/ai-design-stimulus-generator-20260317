@@ -5,7 +5,7 @@ import DetailPanel from "./components/DetailPanel";
 import EmptyState from "./components/EmptyState";
 
 const SAMPLE_PLACEHOLDER =
-  "例如：为共享办公场景设计一款可移动收纳设备，需要提升空间适应性、使用效率和可持续性。";
+  "例如：为老年人家庭厨房设计一款更安全的电热水壶系统，需提升防烫、清洁便利性与能耗管理。";
 
 export default function App() {
   const [requirement, setRequirement] = useState("");
@@ -13,8 +13,10 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const minChars = 8;
+  const currentChars = requirement.trim().length;
 
-  const canGenerate = requirement.trim().length >= 8 && !loading;
+  const canGenerate = currentChars >= minChars && !loading;
 
   const groups = useMemo(() => {
     if (!result) return [];
@@ -63,6 +65,14 @@ export default function App() {
             placeholder={SAMPLE_PLACEHOLDER}
             className="w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition-colors duration-150 placeholder:text-slate-400 focus:border-slate-500"
           />
+          <div className="mt-2 flex items-center justify-between text-xs">
+            <span className={currentChars < minChars ? "text-amber-700" : "text-slate-500"}>
+              至少输入 {minChars} 个字符后可生成
+            </span>
+            <span className="text-slate-500">
+              {currentChars} / {minChars}
+            </span>
+          </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
@@ -83,8 +93,11 @@ export default function App() {
               重新生成
             </button>
 
-            <span className="text-xs text-slate-500">每次返回三组结果，每组 10 个。</span>
+            <span className="text-xs text-slate-500">每次返回三组结果，每组 16 个。</span>
           </div>
+          {!canGenerate && !loading ? (
+            <p className="mt-2 text-xs text-amber-700">请先输入至少 8 个字符，再点击“生成刺激词”。</p>
+          ) : null}
 
           {error ? (
             <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
