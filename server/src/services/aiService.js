@@ -5,6 +5,8 @@ import { normalizeStimulusResult, validateStimulusResult } from "../utils/valida
 const client = new OpenAI({
   apiKey: env.modelscopeSdkToken,
   baseURL: env.modelscopeBaseUrl,
+  timeout: 45000,
+  maxRetries: 0,
 });
 
 function buildMessages(requirement) {
@@ -48,9 +50,147 @@ function parseJsonSafely(content) {
   }
 }
 
+function textOrFallback(value, fallback, maxLen) {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  return text.slice(0, maxLen);
+}
+
+function toArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function uniqueWord(word, used) {
+  let base = textOrFallback(word, "补充概念", 24).replace(/\s+/g, "");
+  if (!base) base = "补充概念";
+  if (!used.has(base.toLowerCase())) {
+    used.add(base.toLowerCase());
+    return base;
+  }
+  let idx = 2;
+  while (used.has(`${base}${idx}`.toLowerCase())) {
+    idx += 1;
+  }
+  const finalWord = `${base}${idx}`;
+  used.add(finalWord.toLowerCase());
+  return finalWord;
+}
+
+function fallbackByCategory(category) {
+  if (category === "near") {
+    return {
+      inspiration: "从器件结构、材料特性与性能约束中提炼可执行启发。",
+      direction: "围绕功能稳定性与制造可行性，优化结构细节与关键参数。",
+      application: "先在核心功能模块中小范围试制，再逐步扩展到完整系统。",
+      risk: "需关注成本、耐久与加工复杂度，避免过度设计导致落地困难。",
+    };
+  }
+  if (category === "medium") {
+    return {
+      inspiration: "从用户行为路径、使用场景转换与体验痛点中抽取线索。",
+      direction: "重构关键交互节点，提升任务效率、使用反馈与情境适应性。",
+      application: "在高频场景中进行分阶段验证，迭代体验策略与服务触点。",
+      risk: "需控制学习成本与使用负担，避免新流程引入额外操作阻力。",
+    };
+  }
+  return {
+    inspiration: "借鉴自然机理、隐喻关系与跨领域系统逻辑形成新视角。",
+    direction: "将抽象机制映射为可设计语言，探索突破式概念与组合方式。",
+    application: "先做低保真概念验证，再选择一条路径转化为可测原型。",
+    risk: "概念跨度较大，需防止语义漂移并及时回到真实需求边界。",
+  };
+}
+
+function coerceGroup(group, category, requirement, usedWords) {
+  const fallback = fallbackByCategory(category);
+  const source = toArray(group);
+  const output = [];
+
+  for (let i = 0; i < source.length && output.length < 16; i += 1) {
+    const item = source[i] || {};
+    const word = uniqueWord(item.word, usedWords);
+
+    output.push({
+      word,
+      inspiration: textOrFallback(item.inspiration, fallback.inspiration, 220),
+      direction: textOrFallback(item.direction, fallback.direction, 260),
+      application: textOrFallback(item.application, fallback.application, 260),
+      risk: textOrFallback(item.risk, fallback.risk, 260),
+    });
+  }
+
+  while (output.length < 16) {
+    const index = output.length + 1;
+    const word = uniqueWord(`${category}-${index}`, usedWords);
+    output.push({
+      word,
+      inspiration: fallback.inspiration,
+      direction: fallback.direction,
+      application: `围绕“${requirement.slice(0, 24)}”补充一个可验证的子方向，逐步推进原型测试。`,
+      risk: fallback.risk,
+    });
+  }
+
+  return output.slice(0, 16);
+}
+
+function coerceStimulusResult(parsed, requirement) {
+  const result = parsed && typeof parsed === "object" ? parsed : {};
+  const usedWords = new Set();
+
+  return {
+    near: coerceGroup(result.near, "near", requirement, usedWords),
+    medium: coerceGroup(result.medium, "medium", requirement, usedWords),
+    far: coerceGroup(result.far, "far", requirement, usedWords),
+  };
+}
+
 async function createCompletion(requirement, useJsonMode = true) {
+  const model = env.modelscopeModel;
   const payload = {
-    model: env.modelscopeModel,
+    model,
+    temperature: 0.9,
+    messages: buildMessages(requirement),
+  };
+
+  if (useJsonMode) {
+    payload.response_format = { type: "json_object" };
+  }
+
+  return client.chat.completions.create(payload);
+}
+
+function getModelCandidates() {
+  const configured = String(env.modelscopeModel || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  const fallbacks = [
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+  ];
+
+  const unique = [];
+  for (const name of [...configured, ...fallbacks]) {
+    if (!unique.includes(name)) unique.push(name);
+  }
+  return unique;
+}
+
+function isJsonModeUnsupported(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("response_format") || message.includes("json_object");
+}
+
+function isQuotaError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("quota") || message.includes("exceeded");
+}
+
+async function createCompletionByModel(requirement, model, useJsonMode = true) {
+  const payload = {
+    model,
     temperature: 0.9,
     messages: buildMessages(requirement),
   };
@@ -69,36 +209,48 @@ export async function generateDesignStimuli(requirement) {
     throw err;
   }
 
-  let useJsonMode = true;
+  const models = getModelCandidates();
   let lastError = null;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      let completion;
+  for (const model of models) {
+    let useJsonMode = true;
 
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
-        completion = await createCompletion(requirement, useJsonMode);
-      } catch (error) {
-        const message = String(error?.message || "").toLowerCase();
-        if (useJsonMode && (message.includes("response_format") || message.includes("json_object"))) {
+        let completion;
+
+        try {
+          completion = await createCompletionByModel(requirement, model, useJsonMode);
+        } catch (error) {
+          if (useJsonMode && isJsonModeUnsupported(error)) {
+            useJsonMode = false;
+            completion = await createCompletionByModel(requirement, model, false);
+          } else {
+            throw error;
+          }
+        }
+
+        let content = completion?.choices?.[0]?.message?.content;
+        if ((!content || !String(content).trim()) && useJsonMode) {
           useJsonMode = false;
-          completion = await createCompletion(requirement, false);
-        } else {
-          throw error;
+          completion = await createCompletionByModel(requirement, model, false);
+          content = completion?.choices?.[0]?.message?.content;
+        }
+        const parsed = parseJsonSafely(content);
+        const coerced = coerceStimulusResult(parsed, requirement);
+        const schemaError = validateStimulusResult(coerced);
+
+        if (schemaError) {
+          throw new Error(`invalid model output schema: ${schemaError}`);
+        }
+
+        return normalizeStimulusResult(coerced);
+      } catch (error) {
+        lastError = error;
+        if (isQuotaError(error)) {
+          break;
         }
       }
-
-      const content = completion?.choices?.[0]?.message?.content;
-      const parsed = parseJsonSafely(content);
-      const schemaError = validateStimulusResult(parsed);
-
-      if (schemaError) {
-        throw new Error(`invalid model output schema: ${schemaError}`);
-      }
-
-      return normalizeStimulusResult(parsed);
-    } catch (error) {
-      lastError = error;
     }
   }
 
