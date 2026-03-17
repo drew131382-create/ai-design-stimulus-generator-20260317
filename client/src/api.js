@@ -12,7 +12,7 @@ export async function generateStimuli(requirement) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || "Generation failed. Please try again.");
+    throw new Error(data.error || "生成失败，请稍后重试。");
   }
 
   return data;

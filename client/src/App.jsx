@@ -5,7 +5,7 @@ import DetailPanel from "./components/DetailPanel";
 import EmptyState from "./components/EmptyState";
 
 const SAMPLE_PLACEHOLDER =
-  "Example: Design an innovative mobile storage product for shared offices that improves adaptability, efficiency, and sustainability.";
+  "例如：为共享办公场景设计一款可移动收纳设备，需要提升空间适应性、使用效率和可持续性。";
 
 export default function App() {
   const [requirement, setRequirement] = useState("");
@@ -20,9 +20,9 @@ export default function App() {
     if (!result) return [];
 
     return [
-      { key: "near", title: "Near Stimuli", items: result.near || [] },
-      { key: "medium", title: "Medium Stimuli", items: result.medium || [] },
-      { key: "far", title: "Far Stimuli", items: result.far || [] },
+      { key: "near", title: "Near Stimuli（近距离）", items: result.near || [] },
+      { key: "medium", title: "Medium Stimuli（中距离）", items: result.medium || [] },
+      { key: "far", title: "Far Stimuli（远距离）", items: result.far || [] },
     ];
   }, [result]);
 
@@ -35,7 +35,7 @@ export default function App() {
       setResult(data);
       setSelected(null);
     } catch (err) {
-      setError(err.message || "Generation failed. Please try again.");
+      setError(err.message || "生成失败，请稍后重试。");
     } finally {
       setLoading(false);
     }
@@ -45,15 +45,15 @@ export default function App() {
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
         <header className="mb-6 border-b border-slate-200 pb-4">
-          <h1 className="text-2xl font-semibold text-slate-900">AI Design Stimulus Generator</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">AI设计刺激词生成器</h1>
           <p className="mt-2 text-sm text-slate-600">
-            A tool for design research that generates Near, Medium, and Far stimuli from your design requirement.
+            面向工业设计、产品设计与设计研究的在线工具，基于你的需求生成 Near / Medium / Far 三组刺激词。
           </p>
         </header>
 
         <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
           <label htmlFor="requirement" className="mb-2 block text-sm font-medium text-slate-700">
-            Design Requirement
+            设计需求
           </label>
           <textarea
             id="requirement"
@@ -71,7 +71,7 @@ export default function App() {
               disabled={!canGenerate}
               className="rounded-md border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
             >
-              {loading ? "Generating..." : "Generate Stimuli"}
+              {loading ? "生成中..." : "生成刺激词"}
             </button>
 
             <button
@@ -80,10 +80,10 @@ export default function App() {
               disabled={!result || loading}
               className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors duration-150 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
             >
-              Regenerate
+              重新生成
             </button>
 
-            <span className="text-xs text-slate-500">Three groups, 10 stimuli each.</span>
+            <span className="text-xs text-slate-500">每次返回三组结果，每组 10 个。</span>
           </div>
 
           {error ? (
