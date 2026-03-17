@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ai-design-stimulus-generator-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: PORT
+        value: "10000"
