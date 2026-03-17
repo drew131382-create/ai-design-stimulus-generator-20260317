@@ -8,6 +8,7 @@ const client = new OpenAI({
   timeout: 25000,
   maxRetries: 0,
 });
+const TARGET_COUNT = 10;
 
 function buildMessages(requirement) {
   return [
@@ -15,7 +16,7 @@ function buildMessages(requirement) {
       role: "system",
       content:
         "你是设计研究助手。必须仅输出严格 JSON，不要 markdown，不要解释。" +
-        "顶层仅允许 near、medium、far 三个字段。每个字段必须是长度 16 的数组。" +
+        "顶层仅允许 near、medium、far 三个字段。每个字段必须是长度 10 的数组。" +
         "每个元素必须包含并仅包含这些字符串字段：word、inspiration、direction、application、risk。" +
         "全部内容必须使用简体中文。word 要短（2-8字），三组词语不能重复。" +
         "inspiration 说明启发来源（20-50字）；direction 说明设计推进方向（30-70字）；" +
@@ -106,7 +107,7 @@ function coerceGroup(group, category, requirement, usedWords) {
   const source = toArray(group);
   const output = [];
 
-  for (let i = 0; i < source.length && output.length < 16; i += 1) {
+  for (let i = 0; i < source.length && output.length < TARGET_COUNT; i += 1) {
     const item = source[i] || {};
     const word = uniqueWord(item.word, usedWords);
 
@@ -119,7 +120,7 @@ function coerceGroup(group, category, requirement, usedWords) {
     });
   }
 
-  while (output.length < 16) {
+  while (output.length < TARGET_COUNT) {
     const index = output.length + 1;
     const word = uniqueWord(`${category}-${index}`, usedWords);
     output.push({
@@ -131,7 +132,7 @@ function coerceGroup(group, category, requirement, usedWords) {
     });
   }
 
-  return output.slice(0, 16);
+  return output.slice(0, TARGET_COUNT);
 }
 
 function coerceStimulusResult(parsed, requirement) {

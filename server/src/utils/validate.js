@@ -65,8 +65,8 @@ export function validateStimulusResult(result) {
       return `${group} must be an array`;
     }
 
-    if (result[group].length !== 16) {
-      return `${group} must contain exactly 16 items`;
+    if (result[group].length !== 10) {
+      return `${group} must contain exactly 10 items`;
     }
 
     for (let i = 0; i < result[group].length; i += 1) {

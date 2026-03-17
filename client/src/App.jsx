@@ -93,7 +93,7 @@ export default function App() {
               重新生成
             </button>
 
-            <span className="text-xs text-slate-500">每次返回三组结果，每组 16 个。</span>
+            <span className="text-xs text-slate-500">每次返回三组结果，每组 10 个。</span>
           </div>
           {!canGenerate && !loading ? (
             <p className="mt-2 text-xs text-amber-700">请先输入至少 8 个字符，再点击“生成刺激词”。</p>
