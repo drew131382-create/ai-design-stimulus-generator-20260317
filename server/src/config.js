@@ -11,7 +11,7 @@ export const env = {
   port: Number(readEnv("PORT", "3000")) || 3000,
   modelscopeSdkToken: readEnv("MODELSCOPE_SDK_TOKEN"),
   modelscopeBaseUrl: readEnv("MODELSCOPE_BASE_URL", "https://api-inference.modelscope.cn/v1"),
-  modelscopeModel: readEnv("MODELSCOPE_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
+  modelscopeModel: readEnv("MODELSCOPE_MODEL", "deepseek-ai/DeepSeek-V3.2"),
   allowedOrigin: readEnv("ALLOWED_ORIGIN"),
 };
 
