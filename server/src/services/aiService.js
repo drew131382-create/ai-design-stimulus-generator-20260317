@@ -5,7 +5,7 @@ import { normalizeStimulusResult, validateStimulusResult } from "../utils/valida
 const client = new OpenAI({
   apiKey: env.modelscopeSdkToken,
   baseURL: env.modelscopeBaseUrl,
-  timeout: 45000,
+  timeout: 25000,
   maxRetries: 0,
 });
 
@@ -149,7 +149,7 @@ async function createCompletion(requirement, useJsonMode = true) {
   const model = env.modelscopeModel;
   const payload = {
     model,
-    temperature: 0.9,
+    temperature: 0.6,
     messages: buildMessages(requirement),
   };
 
@@ -168,7 +168,7 @@ function getModelCandidates() {
 
   const fallbacks = [
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
   ];
 
   const unique = [];
@@ -191,7 +191,7 @@ function isQuotaError(error) {
 async function createCompletionByModel(requirement, model, useJsonMode = true) {
   const payload = {
     model,
-    temperature: 0.9,
+    temperature: 0.6,
     messages: buildMessages(requirement),
   };
 
@@ -215,7 +215,7 @@ export async function generateDesignStimuli(requirement) {
   for (const model of models) {
     let useJsonMode = true;
 
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
+    for (let attempt = 1; attempt <= 1; attempt += 1) {
       try {
         let completion;
 
