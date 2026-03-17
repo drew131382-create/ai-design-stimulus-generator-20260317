@@ -1,7 +1,7 @@
 # AI Design Stimulus Generator
 
 A web tool for industrial design, product design, and design research.
-Users submit a design requirement, and the system generates three stimulus groups via DeepSeek API:
+Users submit a design requirement, and the system generates three stimulus groups via ModelScope API:
 
 - Near Stimuli
 - Medium Stimuli
@@ -14,7 +14,7 @@ Users submit a design requirement, and the system generates three stimulus group
 - Frontend and backend are separated
 - Frontend: React + Vite + Tailwind CSS
 - Backend: Node.js + Express
-- AI: DeepSeek API (OpenAI-compatible)
+- AI: ModelScope API (OpenAI-compatible)
 - Deployment: Frontend on Vercel, backend on Render
 
 Project structure:
@@ -51,7 +51,9 @@ Copy values from root `.env.example` into:
 `server/.env`
 
 ```env
-DEEPSEEK_API_KEY=your_api_key_here
+MODELSCOPE_SDK_TOKEN=your_modelscope_sdk_token_here
+MODELSCOPE_BASE_URL=https://api-inference.modelscope.cn/v1
+MODELSCOPE_MODEL=Qwen/Qwen2.5-7B-Instruct
 ALLOWED_ORIGIN=http://localhost:5173
 PORT=3000
 ```
@@ -88,7 +90,9 @@ Health check: `GET http://localhost:3000/health`
 
 ### Backend (Render)
 
-- `DEEPSEEK_API_KEY`: DeepSeek API key
+- `MODELSCOPE_SDK_TOKEN`: ModelScope SDK token
+- `MODELSCOPE_BASE_URL`: `https://api-inference.modelscope.cn/v1`
+- `MODELSCOPE_MODEL`: model id, default `Qwen/Qwen2.5-7B-Instruct`
 - `ALLOWED_ORIGIN`: allowed CORS origin (for example `https://your-frontend.vercel.app`)
 - `PORT`: server port (Render can inject it automatically)
 
@@ -118,7 +122,9 @@ Health check: `GET http://localhost:3000/health`
 3. Build Command: `npm install`
 4. Start Command: `npm start`
 5. Add environment variables:
-   - `DEEPSEEK_API_KEY=your_api_key_here`
+   - `MODELSCOPE_SDK_TOKEN=your_modelscope_sdk_token_here`
+   - `MODELSCOPE_BASE_URL=https://api-inference.modelscope.cn/v1`
+   - `MODELSCOPE_MODEL=Qwen/Qwen2.5-7B-Instruct`
    - `ALLOWED_ORIGIN=https://your-frontend.vercel.app`
    - `PORT=10000` (optional)
 6. Deploy and copy backend public URL, for example `https://your-backend.onrender.com`.

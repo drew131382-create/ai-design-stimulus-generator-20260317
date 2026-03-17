@@ -8,8 +8,12 @@ services:
     startCommand: npm start
     healthCheckPath: /health
     envVars:
-      - key: DEEPSEEK_API_KEY
+      - key: MODELSCOPE_SDK_TOKEN
         sync: false
+      - key: MODELSCOPE_BASE_URL
+        value: "https://api-inference.modelscope.cn/v1"
+      - key: MODELSCOPE_MODEL
+        value: "Qwen/Qwen2.5-7B-Instruct"
       - key: ALLOWED_ORIGIN
         sync: false
       - key: PORT

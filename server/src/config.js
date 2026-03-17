@@ -9,11 +9,13 @@ function readEnv(name, fallback = "") {
 
 export const env = {
   port: Number(readEnv("PORT", "3000")) || 3000,
-  deepseekApiKey: readEnv("DEEPSEEK_API_KEY"),
+  modelscopeSdkToken: readEnv("MODELSCOPE_SDK_TOKEN"),
+  modelscopeBaseUrl: readEnv("MODELSCOPE_BASE_URL", "https://api-inference.modelscope.cn/v1"),
+  modelscopeModel: readEnv("MODELSCOPE_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
   allowedOrigin: readEnv("ALLOWED_ORIGIN"),
 };
 
-if (!env.deepseekApiKey) {
+if (!env.modelscopeSdkToken) {
   // Keep process alive for health checks; generation route will return clear error.
-  console.warn("[warn] DEEPSEEK_API_KEY is not set. /api/generate will fail until configured.");
+  console.warn("[warn] MODELSCOPE_SDK_TOKEN is not set. /api/generate will fail until configured.");
 }

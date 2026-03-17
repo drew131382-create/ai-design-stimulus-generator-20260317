@@ -3,8 +3,8 @@ import { env } from "../config.js";
 import { normalizeStimulusResult, validateStimulusResult } from "../utils/validate.js";
 
 const client = new OpenAI({
-  apiKey: env.deepseekApiKey,
-  baseURL: "https://api.deepseek.com",
+  apiKey: env.modelscopeSdkToken,
+  baseURL: env.modelscopeBaseUrl,
 });
 
 function buildMessages(requirement) {
@@ -46,19 +46,39 @@ function parseJsonSafely(content) {
   }
 }
 
+async function createCompletion(requirement, useJsonMode = true) {
+  const payload = {
+    model: env.modelscopeModel,
+    temperature: 1,
+    messages: buildMessages(requirement),
+  };
+
+  if (useJsonMode) {
+    payload.response_format = { type: "json_object" };
+  }
+
+  return client.chat.completions.create(payload);
+}
+
 export async function generateDesignStimuli(requirement) {
-  if (!env.deepseekApiKey) {
-    const err = new Error("server missing DEEPSEEK_API_KEY");
+  if (!env.modelscopeSdkToken) {
+    const err = new Error("server missing MODELSCOPE_SDK_TOKEN");
     err.status = 500;
     throw err;
   }
 
-  const completion = await client.chat.completions.create({
-    model: "deepseek-chat",
-    temperature: 1,
-    response_format: { type: "json_object" },
-    messages: buildMessages(requirement),
-  });
+  let completion;
+  try {
+    completion = await createCompletion(requirement, true);
+  } catch (error) {
+    // Some OpenAI-compatible providers may not support response_format.
+    const message = String(error?.message || "").toLowerCase();
+    if (message.includes("response_format") || message.includes("json_object")) {
+      completion = await createCompletion(requirement, false);
+    } else {
+      throw error;
+    }
+  }
 
   const content = completion?.choices?.[0]?.message?.content;
   const parsed = parseJsonSafely(content);
