@@ -53,7 +53,7 @@ app.use((req, res) => {
 
 app.use((err, _req, res, _next) => {
   const status = Number(err.status) || (err.message === "Not allowed by CORS" ? 403 : 500);
-  const message = status >= 500 ? "Internal server error" : err.message;
+  const message = err.userMessage || (status >= 500 ? "Internal server error" : err.message);
   if (status >= 500) {
     console.error(err);
   }
