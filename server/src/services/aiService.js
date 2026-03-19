@@ -3,11 +3,25 @@ import { env } from "../config.js";
 import { normalizeStimulusResult, validateStimulusResult } from "../utils/validate.js";
 
 const TARGET_COUNT = 10;
+const FORBIDDEN_WORDS = new Set([
+  "\u90bb\u5c45",
+  "\u540c\u4e8b",
+  "\u540c\u5b66",
+  "\u5ba2\u6237",
+  "\u6821\u53cb",
+  "\u540c\u884c",
+  "\u8def\u4eba",
+  "\u6e38\u5ba2",
+  "\u964c\u751f\u4eba",
+  "\u670b\u53cb",
+  "\u4eb2\u621a",
+  "\u5bb6\u4eba",
+]);
 
 const client = new OpenAI({
   apiKey: env.modelscopeSdkToken,
   baseURL: env.modelscopeBaseUrl,
-  timeout: 25000,
+  timeout: 20000,
   maxRetries: 0,
 });
 
@@ -16,21 +30,50 @@ function buildMessages(requirement) {
     {
       role: "system",
       content:
-        "You are a design research assistant. Output strict JSON only; no markdown; no explanation. " +
+        "You are a design research assistant. Return strict JSON only, no markdown, no explanations. " +
+        "All output text must be Simplified Chinese. " +
         "Top-level keys must be near, medium, far only. " +
         `Each group must contain exactly ${TARGET_COUNT} items. ` +
-        "Each item must include string fields: word, inspiration, direction, application, risk. " +
-        "All text must be in Simplified Chinese. " +
-        "word should be short (2-8 Chinese characters). " +
-        "No duplicate words across all groups. " +
-        "Near focuses on function/structure/material/performance. " +
-        "Medium focuses on scenario/behavior/experience. " +
-        "Far focuses on nature/metaphor/cross-domain innovation. " +
-        "Generate dynamically from user requirement; avoid templates and fixed vocab lists.",
+        "Each item must contain exactly two fields: word and detail. " +
+        "word must be 2-4 Chinese characters. detail must be short and practical. " +
+        "Do not repeat words across near/medium/far. " +
+        "All items must be strongly relevant to the given requirement. " +
+        "near/medium/far are semantic design distances, not social relationship distances. " +
+        "Do not output person labels, social roles, or relationship words. " +
+        "near focuses on function/structure/material/performance. " +
+        "medium focuses on scenario/behavior/experience. " +
+        "far focuses on nature/metaphor/cross-domain ideas.",
     },
     {
       role: "user",
-      content: `设计需求：${requirement}`,
+      content: `\u8bbe\u8ba1\u9700\u6c42\uff1a${requirement}`,
+    },
+  ];
+}
+
+function buildRepairMessages(requirement, currentJson, schemaError) {
+  return [
+    {
+      role: "system",
+      content:
+        "Fix JSON only. Return strict JSON, no markdown, no explanations. " +
+        "All output text must be Simplified Chinese. " +
+        "Top-level keys: near, medium, far only. " +
+        `Each group must contain exactly ${TARGET_COUNT} items. ` +
+        "Each item must contain exactly two fields: word and detail. " +
+        "word must be 2-4 Chinese characters. detail must be short and practical. " +
+        "Do not repeat words across near/medium/far. " +
+        "All items must stay strongly relevant to the requirement and distance semantics. " +
+        "near/medium/far are semantic design distances, not social relationship distances. " +
+        "Do not output person labels, social roles, or relationship words.",
+    },
+    {
+      role: "user",
+      content:
+        `\u8bbe\u8ba1\u9700\u6c42\uff1a${requirement}\n` +
+        `\u7ed3\u6784\u9519\u8bef\uff1a${schemaError}\n` +
+        "\u8bf7\u4fee\u590d\u4e0b\u65b9 JSON\uff0c\u53ea\u8fd4\u56de\u4fee\u590d\u540e\u7684 JSON\uff1a\n" +
+        JSON.stringify(currentJson),
     },
   ];
 }
@@ -54,39 +97,63 @@ function parseJsonSafely(content) {
   }
 }
 
-function isJsonModeUnsupported(error) {
-  const message = String(error?.message || "").toLowerCase();
-  return message.includes("response_format") || message.includes("json_object");
-}
-
-function isQuotaError(error) {
-  const message = String(error?.message || "").toLowerCase();
-  return message.includes("quota") || message.includes("exceeded");
-}
-
 function getModelCandidates() {
   const configured = String(env.modelscopeModel || "")
     .split(",")
     .map((v) => v.trim())
     .filter(Boolean);
 
-  const fallbackModels = [
+  const defaults = [
+    "Qwen/Qwen3-8B",
+    "Qwen/Qwen3-1.7B",
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-    "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
   ];
 
   const uniq = [];
-  for (const name of [...configured, ...fallbackModels]) {
+  for (const name of [...configured, ...defaults]) {
     if (!uniq.includes(name)) uniq.push(name);
   }
+
   return uniq;
 }
 
-async function createCompletion(requirement, model, useJsonMode) {
+function isJsonModeUnsupported(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("response_format") || message.includes("json_object");
+}
+
+function isQuotaError(error) {
+  const status = Number(error?.status) || Number(error?.statusCode) || 0;
+  const code = String(error?.code || error?.type || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    status === 429 ||
+    code.includes("insufficient_quota") ||
+    message.includes("quota") ||
+    message.includes("insufficient") ||
+    message.includes("exceeded")
+  );
+}
+
+function isModelUnavailable(error) {
+  const status = Number(error?.status) || Number(error?.statusCode) || 0;
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    status === 404 ||
+    message.includes("no provider supported") ||
+    (status === 400 && message.includes("model id")) ||
+    (message.includes("model") &&
+      (message.includes("not found") || message.includes("invalid") || message.includes("unsupported")))
+  );
+}
+
+async function createChatCompletion(model, messages, useJsonMode) {
   const payload = {
     model,
-    temperature: 0.6,
-    messages: buildMessages(requirement),
+    temperature: 0.5,
+    messages,
   };
 
   if (useJsonMode) {
@@ -96,72 +163,83 @@ async function createCompletion(requirement, model, useJsonMode) {
   return client.chat.completions.create(payload);
 }
 
-function asText(value, fallback, maxLen) {
-  const text = String(value || "").trim();
-  if (!text) return fallback;
-  return text.slice(0, maxLen);
+async function requestJson(model, messages) {
+  let completion;
+  let useJsonMode = true;
+
+  try {
+    completion = await createChatCompletion(model, messages, true);
+  } catch (error) {
+    if (isJsonModeUnsupported(error)) {
+      useJsonMode = false;
+      completion = await createChatCompletion(model, messages, false);
+    } else {
+      throw error;
+    }
+  }
+
+  let content = completion?.choices?.[0]?.message?.content;
+  if ((!content || !String(content).trim()) && useJsonMode) {
+    completion = await createChatCompletion(model, messages, false);
+    content = completion?.choices?.[0]?.message?.content;
+  }
+
+  return parseJsonSafely(content);
 }
 
-function fallbackByCategory(category) {
-  if (category === "near") {
-    return {
-      inspiration: "从功能结构与材料性能约束中提炼可执行启发。",
-      direction: "围绕核心功能可靠性和制造可行性推进细节优化。",
-      application: "先在关键功能模块中验证，再扩展到整机方案。",
-      risk: "注意成本、耐久和加工复杂度，避免过度设计。",
-    };
-  }
-  if (category === "medium") {
-    return {
-      inspiration: "从用户行为路径和场景切换中抽取体验线索。",
-      direction: "优化关键交互节点，提升效率与可理解性。",
-      application: "在高频使用场景中分阶段测试并迭代。",
-      risk: "控制学习成本，避免引入额外操作负担。",
-    };
-  }
-  return {
-    inspiration: "借鉴自然机理与跨领域系统逻辑形成新视角。",
-    direction: "将抽象机制映射为可实现的设计语言。",
-    application: "先做低保真验证，再收敛到可测原型。",
-    risk: "防止概念漂移，持续对齐真实需求边界。",
-  };
+function coerceWord(rawWord) {
+  const word = String(rawWord || "")
+    .trim()
+    .replace(/[\s,.;:|/]/g, "");
+  if (!word) return "";
+  return [...word].slice(0, 4).join("");
 }
 
-function coerceGroup(group, category) {
-  const source = Array.isArray(group) ? group : [];
-  const fallback = fallbackByCategory(category);
+function coerceDetail(rawDetail) {
+  const detail = String(rawDetail || "").trim();
+  if (!detail) return "";
+  return [...detail].slice(0, 60).join("");
+}
+
+function isForbiddenWord(word) {
+  const normalized = String(word || "").trim();
+  if (!normalized) return true;
+  if (FORBIDDEN_WORDS.has(normalized)) return true;
+  return normalized.includes("\u4eba");
+}
+
+function coerceGroup(rawGroup, globalWordSet) {
+  const source = Array.isArray(rawGroup) ? rawGroup : [];
   const output = [];
-  const seenInGroup = new Set();
 
-  for (const raw of source) {
+  for (const item of source) {
     if (output.length >= TARGET_COUNT) break;
-    if (!raw || typeof raw !== "object") continue;
+    if (!item || typeof item !== "object") continue;
 
-    const word = String(raw.word || "").trim().replace(/\s+/g, "");
-    if (!word) continue;
+    const word = coerceWord(item.word);
+    const detail = coerceDetail(
+      item.detail || item.direction || item.inspiration || item.application || item.risk
+    );
+    if (!word || !detail || isForbiddenWord(word)) continue;
 
     const key = word.toLowerCase();
-    if (seenInGroup.has(key)) continue;
-    seenInGroup.add(key);
+    if (globalWordSet.has(key)) continue;
 
-    output.push({
-      word: word.slice(0, 24),
-      inspiration: asText(raw.inspiration, fallback.inspiration, 220),
-      direction: asText(raw.direction, fallback.direction, 260),
-      application: asText(raw.application, fallback.application, 260),
-      risk: asText(raw.risk, fallback.risk, 260),
-    });
+    globalWordSet.add(key);
+    output.push({ word, detail });
   }
 
   return output;
 }
 
-function coerceStimulusResult(parsed) {
-  const result = parsed && typeof parsed === "object" ? parsed : {};
+function coerceResult(parsed) {
+  const data = parsed && typeof parsed === "object" ? parsed : {};
+  const usedWords = new Set();
+
   return {
-    near: coerceGroup(result.near, "near"),
-    medium: coerceGroup(result.medium, "medium"),
-    far: coerceGroup(result.far, "far"),
+    near: coerceGroup(data.near, usedWords),
+    medium: coerceGroup(data.medium, usedWords),
+    far: coerceGroup(data.far, usedWords),
   };
 }
 
@@ -178,44 +256,34 @@ export async function generateDesignStimuli(requirement) {
   for (const model of models) {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
-        let completion;
-        let useJsonMode = true;
+        const parsed = await requestJson(model, buildMessages(requirement));
+        let result = coerceResult(parsed);
+        let schemaError = validateStimulusResult(result);
 
-        try {
-          completion = await createCompletion(requirement, model, useJsonMode);
-        } catch (error) {
-          if (isJsonModeUnsupported(error)) {
-            useJsonMode = false;
-            completion = await createCompletion(requirement, model, useJsonMode);
-          } else {
-            throw error;
+        if (schemaError) {
+          const repairedParsed = await requestJson(
+            model,
+            buildRepairMessages(requirement, parsed, schemaError)
+          );
+          result = coerceResult(repairedParsed);
+          schemaError = validateStimulusResult(result);
+          if (schemaError) {
+            throw new Error(`invalid model output schema: ${schemaError}`);
           }
         }
 
-        let content = completion?.choices?.[0]?.message?.content;
-        if ((!content || !String(content).trim()) && useJsonMode) {
-          completion = await createCompletion(requirement, model, false);
-          content = completion?.choices?.[0]?.message?.content;
-        }
-
-        const parsed = parseJsonSafely(content);
-        const coerced = coerceStimulusResult(parsed);
-        const schemaError = validateStimulusResult(coerced);
-
-        if (schemaError) {
-          throw new Error(`invalid model output schema: ${schemaError}`);
-        }
-
-        return normalizeStimulusResult(coerced);
+        return normalizeStimulusResult(result);
       } catch (error) {
         lastError = error;
-        if (isQuotaError(error)) break;
+        if (isQuotaError(error) || isModelUnavailable(error)) {
+          break;
+        }
       }
     }
   }
 
   const err = new Error(lastError?.message || "failed to generate stimuli");
   err.status = 502;
-  err.userMessage = "模型输出不完整，请点击“重新生成”再试一次。";
+  err.userMessage = "\u6a21\u578b\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u70b9\u51fb\u201c\u91cd\u65b0\u751f\u6210\u201d\u518d\u8bd5\u4e00\u6b21\u3002";
   throw err;
 }

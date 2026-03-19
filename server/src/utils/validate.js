@@ -2,6 +2,10 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function charLen(text) {
+  return [...String(text || "")].length;
+}
+
 export function validateInput(requirement) {
   if (!isNonEmptyString(requirement)) {
     return "requirement must be a non-empty string";
@@ -24,31 +28,19 @@ function validateItem(item, groupName, index) {
     return `${groupName}[${index}] must be an object`;
   }
 
-  const fields = ["word", "inspiration", "direction", "application", "risk"];
+  const fields = ["word", "detail"];
   for (const field of fields) {
     if (!isNonEmptyString(item[field])) {
       return `${groupName}[${index}].${field} must be a non-empty string`;
     }
   }
 
-  if (String(item.word).trim().length > 24) {
-    return `${groupName}[${index}].word is too long`;
+  if (charLen(item.word) > 4) {
+    return `${groupName}[${index}].word must be <= 4 chars`;
   }
 
-  if (String(item.inspiration).trim().length > 220) {
-    return `${groupName}[${index}].inspiration is too long`;
-  }
-
-  if (String(item.direction).trim().length > 260) {
-    return `${groupName}[${index}].direction is too long`;
-  }
-
-  if (String(item.application).trim().length > 260) {
-    return `${groupName}[${index}].application is too long`;
-  }
-
-  if (String(item.risk).trim().length > 260) {
-    return `${groupName}[${index}].risk is too long`;
+  if (charLen(item.detail) > 80) {
+    return `${groupName}[${index}].detail is too long`;
   }
 
   return null;
@@ -93,24 +85,15 @@ export function normalizeStimulusResult(result) {
   return {
     near: result.near.map((item) => ({
       word: String(item.word).trim(),
-      inspiration: String(item.inspiration).trim(),
-      direction: String(item.direction).trim(),
-      application: String(item.application).trim(),
-      risk: String(item.risk).trim(),
+      detail: String(item.detail).trim(),
     })),
     medium: result.medium.map((item) => ({
       word: String(item.word).trim(),
-      inspiration: String(item.inspiration).trim(),
-      direction: String(item.direction).trim(),
-      application: String(item.application).trim(),
-      risk: String(item.risk).trim(),
+      detail: String(item.detail).trim(),
     })),
     far: result.far.map((item) => ({
       word: String(item.word).trim(),
-      inspiration: String(item.inspiration).trim(),
-      direction: String(item.direction).trim(),
-      application: String(item.application).trim(),
-      risk: String(item.risk).trim(),
+      detail: String(item.detail).trim(),
     })),
   };
 }

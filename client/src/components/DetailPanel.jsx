@@ -1,46 +1,48 @@
 function categoryText(category) {
-  if (category === "near") return "Near Stimuli（近距离）";
-  if (category === "medium") return "Medium Stimuli（中距离）";
-  return "Far Stimuli（远距离）";
+  if (category === "near") return "Near Stimuli\uff08\u8fd1\u8ddd\u79bb\uff09";
+  if (category === "medium") return "Medium Stimuli\uff08\u4e2d\u8ddd\u79bb\uff09";
+  return "Far Stimuli\uff08\u8fdc\u8ddd\u79bb\uff09";
 }
 
 export default function DetailPanel({ selected }) {
   if (!selected) {
     return (
       <aside className="rounded-lg border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-slate-800">详情</h3>
-        <p className="text-sm leading-6 text-slate-500">点击任意刺激词卡片查看更详细的启发说明与落地方向。</p>
+        <h3 className="mb-3 text-sm font-semibold text-slate-800">{"\u8be6\u60c5"}</h3>
+        <p className="text-sm leading-6 text-slate-500">
+          {"\u70b9\u51fb\u4efb\u610f\u523a\u6fc0\u8bcd\u5361\u7247\uff0c\u67e5\u770b\u8be5\u8bcd\u7684\u7b80\u8981\u8bbe\u8ba1\u8bf4\u660e\u3002"}
+        </p>
       </aside>
     );
   }
 
   return (
     <aside className="rounded-lg border border-slate-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-slate-800">详情</h3>
+      <h3 className="mb-3 text-sm font-semibold text-slate-800">{"\u8be6\u60c5"}</h3>
       <dl className="space-y-3 text-sm text-slate-700">
         <div>
-          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">词语</dt>
-          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-medium">{selected.word}</dd>
+          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+            {"\u8bcd\u6c47"}
+          </dt>
+          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-medium">
+            {selected.word}
+          </dd>
         </div>
         <div>
-          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">启发来源</dt>
-          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 leading-6">{selected.inspiration}</dd>
+          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+            {"\u7b80\u8981\u8be6\u60c5"}
+          </dt>
+          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 leading-6">
+            {selected.detail}
+          </dd>
         </div>
         <div>
-          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">设计方向</dt>
-          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 leading-6">{selected.direction}</dd>
-        </div>
-        <div>
-          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">应用建议</dt>
-          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 leading-6">{selected.application}</dd>
-        </div>
-        <div>
-          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">设计提醒</dt>
-          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 leading-6">{selected.risk}</dd>
-        </div>
-        <div>
-          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">分类</dt>
-          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">{categoryText(selected.category)}</dd>
+          <dt className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+            {"\u5206\u7c7b"}
+          </dt>
+          <dd className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            {categoryText(selected.category)}
+          </dd>
         </div>
       </dl>
     </aside>
